@@ -1,6 +1,7 @@
 package company;
 
 import java.lang.reflect.Type;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -69,7 +70,6 @@ public class CompanyServices {
         }
     }
 
-
     // Create a new department within a company
     @Path("department")
     @POST
@@ -106,7 +106,7 @@ public class CompanyServices {
             // Convert input JSON to JsonObject & Create new dept variables
             JsonObject convertedJson = new Gson().fromJson(inJson, JsonObject.class);
             String newCompany = convertedJson.get("company").getAsString();
-            Integer newDeptId = convertedJson.get("dept_id").getAsInt();
+            int newDeptId = convertedJson.get("dept_id").getAsInt();
             String newDeptName = convertedJson.get("dept_name").getAsString();
             String newDeptNo = convertedJson.get("dept_no").getAsString();
             String newDeptLocation = convertedJson.get("location").getAsString();
@@ -135,12 +135,11 @@ public class CompanyServices {
                                      @DefaultValue("1") @QueryParam("dept_id") Integer inDeptId) {
         try {
             dataLayer = new DataLayer("txm5483");
-
             int didDelete = dataLayer.deleteDepartment(inCompany, inDeptId);
             if (didDelete > 0) {
                 return Response.ok("{\"success\":\"Department "+ inDeptId + " from " + inCompany + " Deleted Successfully\"}\"").build();
             } else {
-                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\""+ "Could not delete department with id" + inDeptId + "\"}\"").build();
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\""+ "Could not delete department with id " + inDeptId + "\"}\"").build();
             }
         } catch (Exception exception) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
@@ -149,13 +148,14 @@ public class CompanyServices {
         }
     }
 
+
     //////////////////////////////////////////// END DEPARTMENT HANDLING ////////////////////////////////////////////
 
 
     //////////////////////////////////////////// START EMPLOYEE HANDLING ////////////////////////////////////////////
 
 
-    // Gets all employess from the company
+    // Gets all employees from the company
     @Path("employees")
     @GET
     @Produces("application/json")
@@ -175,7 +175,7 @@ public class CompanyServices {
         }
     }
 
-    // Gets a specific department from the company
+    // Gets a specific employee from the company
     @Path("employee")
     @GET
     @Produces("application/json")
@@ -227,7 +227,6 @@ public class CompanyServices {
         }
     }
 
-
     // Update a department within a company
     @Path("employee")
     @PUT
@@ -265,13 +264,12 @@ public class CompanyServices {
         }
     }
 
-
     // Delete a employee from a company
     @Path("employee")
     @DELETE
     @Produces("application/json")
     public Response deleteEmployee(@DefaultValue("1") @QueryParam("company") String inCompany,
-                                     @DefaultValue("1") @QueryParam("emp_id") Integer inEmpId) {
+                                   @DefaultValue("1") @QueryParam("emp_id") Integer inEmpId) {
         try {
             dataLayer = new DataLayer("txm5483");
 
@@ -289,6 +287,143 @@ public class CompanyServices {
     }
 
 
+    //////////////////////////////////////////// END EMPLOYEE HANDLING ////////////////////////////////////////////
+
+
+    //////////////////////////////////////////// START TIMECARD HANDLING ////////////////////////////////////////////
+
+
+    // Gets all timecards for an employee from the company
+    @Path("timecards")
+    @GET
+    @Produces("application/json")
+    public Response getAllTimecardsFromCompany(@DefaultValue("1") @QueryParam("company") String inCompany,
+                                               @DefaultValue("1") @QueryParam("emp_id") int inEmployeeId) {
+        try {
+            dataLayer = new DataLayer("txm5483");
+            List<Timecard> allTimecards = dataLayer.getAllTimecard(inEmployeeId);
+            if (allTimecards != null) {
+                return Response.ok(new Gson().toJson(allTimecards)).build();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\""+ "No timecards for employee id " + inEmployeeId + " found in database.\"}\"").build();
+            }
+        } catch (Exception exception) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
+        } finally {
+            dataLayer.close();
+        }
+    }
+
+    // Gets a specific timecard from the company
+    @Path("timecard")
+    @GET
+    @Produces("application/json")
+    public Response getTimecardByIdFromCompany(@DefaultValue("1") @QueryParam("company") String inCompany,
+                                               @DefaultValue("1") @QueryParam("timecard_id") int inTimecardId) {
+        try {
+            dataLayer = new DataLayer("txm5483");
+            Timecard timecardToGet = dataLayer.getTimecard(inTimecardId);
+            if (timecardToGet != null) {
+                String departmentJson = new Gson().toJson(timecardToGet);
+                return Response.ok(departmentJson).build();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\""+ "Timecard with ID " + inTimecardId + " was not found in database.\"}\"").build();
+            }
+
+        } catch (Exception exception) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
+        } finally {
+            dataLayer.close();
+        }
+    }
+
+    // Create a new timecard within a company
+    @Path("timecard")
+    @POST
+    @Produces("application/json")
+    public Response createTimecard(@DefaultValue("company") @FormParam("company") String inCompany,
+                                   @DefaultValue("1") @FormParam("emp_id") int inEmployeeId,
+                                   @DefaultValue("startTime") @FormParam("start_time") String inStartTime,
+                                   @DefaultValue("endTime") @FormParam("end_time") String inEndTime) {
+
+        try {
+            dataLayer = new DataLayer("txm5483");
+            java.sql.Timestamp parsedStartTime = new java.sql.Timestamp(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(inStartTime).getTime());
+            java.sql.Timestamp parsedEndTime = new java.sql.Timestamp(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(inStartTime).getTime());
+
+            Timecard newTimecard = new Timecard(parsedStartTime, parsedEndTime, inEmployeeId);
+            Timecard insertedTimecard = dataLayer.insertTimecard(newTimecard);
+            if (insertedTimecard != null) {
+                return Response.ok("{\"success\":" + new Gson().toJson(insertedTimecard) + "}").build();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"response\":\"Could not insert new Timecard into company " + inCompany +  "\"}\"").build();
+            }
+        } catch (Exception exception) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
+        } finally {
+            dataLayer.close();
+        }
+    }
+
+    // Update a department within a company
+    @Path("timecard")
+    @PUT
+    @Produces("application/json")
+    public Response updateTimecard(String inJson) {
+        try {
+            dataLayer = new DataLayer("txm5483");
+
+            // Convert input JSON to JsonObject & Create new employee variables
+            JsonObject convertedJson = new Gson().fromJson(inJson, JsonObject.class);
+            String newCompany = convertedJson.get("company").getAsString();
+            int newTimecardId = convertedJson.get("timecard_id").getAsInt();
+            String newStartTime = convertedJson.get("start_time").getAsString();
+            String newEndTime = convertedJson.get("end_time").getAsString();
+            int newEmployeeId = convertedJson.get("emp_id").getAsInt();
+
+            // Create updated employee object & insert into database
+            java.sql.Timestamp parsedStartTime = new java.sql.Timestamp(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(newStartTime).getTime());
+            java.sql.Timestamp parsedEndTime = new java.sql.Timestamp(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(newEndTime).getTime());
+            Timecard updatedTimecard = new Timecard(newTimecardId, parsedStartTime, parsedEndTime, newEmployeeId);
+            Timecard insertedTimecard = dataLayer.updateTimecard(updatedTimecard);
+
+            if (insertedTimecard != null) {
+                return Response.ok(new Gson().toJson(insertedTimecard)).build();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\"Could not update department " + newEmployeeId +  "\"}\"").build();
+            }
+        } catch (Exception exception) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
+        } finally {
+            dataLayer.close();
+        }
+    }
+
+    // Delete a timecard from a company
+    @Path("timecard")
+    @DELETE
+    @Produces("application/json")
+    public Response deleteTimecard(@DefaultValue("1") @QueryParam("company") String inCompany,
+                                   @DefaultValue("1") @QueryParam("timecard_id") Integer inTimecardId) {
+        try {
+            dataLayer = new DataLayer("txm5483");
+            int didDelete = dataLayer.deleteTimecard(inTimecardId);
+            if (didDelete > 0) {
+                return Response.ok("{\"success\":\"Timecard "+ inTimecardId + " deleted.\"}\"").build();
+            } else {
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\""+ "Could not delete Timecard " + inTimecardId + "\"}\"").build();
+            }
+        } catch (Exception exception) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
+        } finally {
+            dataLayer.close();
+        }
+    }
+
+
+    //////////////////////////////////////////// END TIMECARD HANDLING ////////////////////////////////////////////
+
+
     //////////////////////////////////////////// START COMPANY HANDLING ////////////////////////////////////////////
 
 
@@ -302,7 +437,7 @@ public class CompanyServices {
             if (didDelete > 0) {
                 return Response.ok("{\"success\":\""+ inCompany + "'s information deleted." + "\"}\"").build();
             } else {
-                return Response.status(Response.Status.BAD_REQUEST).entity("{\"response\":\""+ "Could not delete Company" + inCompany + "\"}\"").build();
+                return Response.status(Response.Status.BAD_REQUEST).entity("{\"response\":\""+ "Could not delete Company " + inCompany + "\"}\"").build();
             }
         } catch (Exception exception) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).entity("{\"error\":\"DataLayer has thrown an exception}\"").build();
@@ -310,6 +445,9 @@ public class CompanyServices {
             dataLayer.close();
         }
     }
+
+
+    //////////////////////////////////////////// END COMPANY HANDLING ////////////////////////////////////////////
 
 
 }
